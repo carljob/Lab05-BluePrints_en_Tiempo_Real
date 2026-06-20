@@ -260,6 +260,43 @@ La lógica de conexión se separó en `lib/` para no mezclarla con la UI, aplica
 El backend de tiempo real usado **no almacena** los planos
 (solo reenvía eventos en vivo). Por eso, al cambiar de plano el lienzo inicia vacío. La persistencia (PostgreSQL) corresponde al laboratorio anterior (CRUD REST); este laboratorio se centra en la **comunicación en tiempo real**.
 
+---
+##  CRUD de planos (REST)
+
+Además del tiempo real, se implementó el **CRUD completo vía API REST** que pide el lab: tabla
+de planos del autor, **total de puntos** (calculado con `reduce`), y botones **Create /
+Save/Update / Delete**.
+
+**Implementación:** el CRUD consume una **API REST real** expuesta por el backend (no se simula
+en el frontend). El backend mantiene los planos en un almacén en memoria (`BlueprintStore`,
+un `ConcurrentHashMap`) y los expone con los cinco endpoints estándar:
+
+| Operación | Método y ruta |
+|-----------|---------------|
+| Listar planos del autor | `GET /api/blueprints?author=:author` |
+| Obtener un plano | `GET /api/blueprints/:author/:name` |
+| Crear | `POST /api/blueprints` |
+| Actualizar puntos | `PUT /api/blueprints/:author/:name` |
+| Eliminar | `DELETE /api/blueprints/:author/:name` |
+
+El frontend invoca estos endpoints con `fetch` (ver funciones `loadPlans`, `loadCanvas`,
+`createBlueprint`, `saveBlueprint`, `deleteBlueprint` en `App.jsx`).
+
+**Decisión de arquitectura (ARSW):** el mismo backend Spring Boot maneja **dos estilos de
+comunicación** sobre responsabilidades distintas:
+- **REST** (request/response) para el **CRUD** de planos.
+- **STOMP/WebSocket** (publish/subscribe) para la **colaboración en tiempo real**.
+
+Esto evidencia que un servicio puede combinar estilos de comunicación según la necesidad de cada
+caso de uso, manteniendo cada controlador con una responsabilidad clara (`BlueprintRestController`
+para REST, `BlueprintController` para el tiempo real). Es una aplicación directa del principio de
+**separación de responsabilidades** visto en ARSW.
+
+**Sobre la persistencia:** el almacén es en memoria (no base de datos), porque el foco de este
+laboratorio es la **comunicación** (REST + tiempo real), no la persistencia —que se resolvió en
+el Lab04 con PostgreSQL. El contrato REST queda idéntico al de una implementación con base de
+datos, por lo que el almacén en memoria podría sustituirse por uno persistente sin cambiar la API.
+
 ### Video de demostración
 
 link: https://youtu.be/Y6-5XTsb7NI
