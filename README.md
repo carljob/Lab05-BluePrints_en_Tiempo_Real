@@ -259,3 +259,7 @@ La lógica de conexión se separó en `lib/` para no mezclarla con la UI, aplica
 ### Nota sobre persistencia
 El backend de tiempo real usado **no almacena** los planos
 (solo reenvía eventos en vivo). Por eso, al cambiar de plano el lienzo inicia vacío. La persistencia (PostgreSQL) corresponde al laboratorio anterior (CRUD REST); este laboratorio se centra en la **comunicación en tiempo real**.
+
+### Video de demostración
+
+link: https://youtu.be/Y6-5XTsb7NI
