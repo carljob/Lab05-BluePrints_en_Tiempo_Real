@@ -175,3 +175,87 @@ En la interfaz: selecciona **Socket.IO** o **STOMP**, define `author` y `name`, 
 
 ## 📄 Licencia
 MIT (o la definida por el curso/equipo).
+
+---
+
+## 🚀 Solución implementada (Frontend RT)
+
+Esta sección documenta la implementación realizada, los cambios hechos y su justificación.
+
+### Repositorios del proyecto
+- Frontend (este repo): `Lab05-BluePrints_en_Tiempo_Real`
+- Backend STOMP: `Lab05-BluePrints_en_Tiempo_Real-Back`
+
+> Para el tiempo real se usó **STOMP sobre WebSocket** con un backend Spring Boot.
+> El código incluye también un cliente Socket.IO como alternativa, pero la solución
+> demostrada y probada usa STOMP.
+
+### ¿Por qué STOMP sobre WebSocket y no REST?
+
+- **REST (request/response):** el cliente pregunta y el servidor responde. No sirve para notificar cambios que originan *otros* clientes (habría que hacer *polling* constante, ineficiente).
+- **WebSocket:** canal **bidireccional y persistente**; el servidor puede enviar datos al cliente en cualquier momento.
+- **STOMP:** protocolo de mensajería sobre WebSocket que añade **tópicos** (`/topic/...`) y **destinos de aplicación** (`/app/...`), encajando con el patrón **publicador/suscriptor** que Spring soporta nativamente.
+
+La separación entre el destino donde el cliente publica (`/app/draw`) y el tópico al que los clientes se suscriben (`/topic/blueprints...`) aplica el principio de **bajo acoplamiento**: quien dibuja no sabe quién más está escuchando.
+
+### Concepto de "sala" por plano
+Cada plano es un canal identificado por `blueprints.{author}.{name}`. Las pestañas que comparten el **mismo autor y plano** están en el mismo canal y se sincronizan en tiempo real.
+
+### Cómo correr el proyecto
+
+**1. Backend (en su repo):**
+```bash
+mvn spring-boot:run
+# http://localhost:8080 — WebSocket: /ws-blueprints
+```
+
+**2. Frontend (este repo):**
+```bash
+npm install      # solo la primera vez
+npm run dev
+# http://localhost:5173
+```
+
+**3. Probar:** abre 2 pestañas con el mismo autor/plano (ej: `juan` / `plano-1`) y dibuja en una; los puntos aparecen en la otra en tiempo real.
+
+### Funcionalidades implementadas y justificación
+
+| Funcionalidad | Justificación |
+|---------------|---------------|
+| **Acumulación de puntos** | El código base borraba el canvas en cada evento; ahora mantiene el dibujo completo |
+| **Círculos + líneas visibles** | Hacer los puntos perceptibles (antes eran líneas casi invisibles) |
+| **Modo clic / arrastre (selector)** | Clic = dibujo incremental (lo que pide el lab); arrastre = trazo continuo |
+| **Espaciado de puntos en arrastre (cada 10px)** | Evita saturar el canal de tiempo real con cientos de mensajes/segundo: decisión de **eficiencia y control de carga** |
+| **Selector de color** | Cada punto viaja con su color `{x, y, color}`; requirió ampliar el DTO `Point` del backend para mantener coherencia cliente-servidor |
+| **Limpiar todo (global)** | Publica un evento en `/app/clear` que el backend reenvía a todos los suscriptores; demuestra que el canal soporta **varios tipos de evento**, no solo dibujar |
+| **Suscripciones al cambiar de plano** | Al cambiar autor/plano, se desuscribe del canal anterior y se suscribe al nuevo, evitando fugas de suscripción |
+
+### Cambios realizados en el backend
+Sobre el backend STOMP guía se hicieron tres ajustes (ver su repositorio):
+- **`@CrossOrigin(origins = "http://localhost:5173")`** → resolvió el bloqueo **CORS** del navegador al llamar al backend desde el frontend (orígenes distintos: puerto 5173 vs 8080).
+- **Nuevo `@MessageMapping("/clear")`** → maneja el evento de limpiar y lo reenvía al tópico `...clear`.
+- **Campo `color` agregado al DTO `Point`** → para que el color viaje del cliente al servidor y de vuelta a todos.
+
+### Estructura del proyecto
+
+src/
+
+
+├── App.jsx              # Canvas, lógica de tiempo real y UI
+
+├── main.jsx             # Punto de entrada de React
+
+└── lib/
+
+├── stompClient.js  # Cliente STOMP (conexión y suscripción)
+
+└── socketIoClient.js  # Cliente Socket.IO (alternativa, no usada en la demo)
+
+
+
+
+La lógica de conexión se separó en `lib/` para no mezclarla con la UI, aplicando **separación de responsabilidades**.
+
+### Nota sobre persistencia
+El backend de tiempo real usado **no almacena** los planos
+(solo reenvía eventos en vivo). Por eso, al cambiar de plano el lienzo inicia vacío. La persistencia (PostgreSQL) corresponde al laboratorio anterior (CRUD REST); este laboratorio se centra en la **comunicación en tiempo real**.
